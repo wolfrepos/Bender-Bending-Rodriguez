@@ -1,10 +1,13 @@
 package io.github.oybek.xo
 
 import cats.effect._
+import cats.effect.concurrent.Ref
 import cats.implicits.catsSyntaxFlatMapOps
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import io.github.oybek.xo.Main.F
 import io.github.oybek.xo.config.Config
 import io.github.oybek.xo.integration.TelegramGate
+import io.github.oybek.xo.model.Board
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.Logger
@@ -30,7 +33,10 @@ object Main extends IOApp {
   private def assembleAndLaunch(config: Config, httpClient: Client[F]): IO[Unit] = {
     val client = Logger(logHeaders = false, logBody = false)(httpClient)
     val api    = BotApi[F](client, s"https://api.telegram.org/bot${config.tgBotApiToken}")
-    new TelegramGate[F](api).start().void
+    for {
+      matches <- Ref.of[F, Map[(Long, Int), Board]](Map.empty)
+      _ <- new TelegramGate[F](matches, api).start().void
+    } yield ()
   }
 
   private def resources[F[_]: Timer: ConcurrentEffect](config: Config): Resource[F, Client[F]] =
