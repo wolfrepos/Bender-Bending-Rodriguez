@@ -8,14 +8,10 @@ import scala.language.implicitConversions
 
 object Board3x3 {
   implicit val ops: BoardOps[Board] = new BoardOps[Board] {
-    override def put(board: Board, coord: Coord, turn: XO): Either[String, Board] =
-      () match {
-        case _ if board.xs.contains(coord)   => Left("Клетка занята братан")
-        case _ if board.os.contains(coord)   => Left("Клетка занята братан")
-        case _ if coord.x < 0 || coord.x > 2 => Left("Нет такой клетки братан")
-        case _ if coord.y < 0 || coord.y > 2 => Left("Нет такой клетки братан")
-        case _ if turn == X                  => Right(Board(coord::board.xs, board.os))
-        case _ if turn == O                  => Right(Board(board.xs, coord::board.os))
+    override def put(board: Board, coord: Coord): Board =
+      turn(board) match {
+        case X => Board(coord::board.xs, board.os)
+        case O => Board(board.xs, coord::board.os)
       }
 
     override def outcome(board: Board): Option[Outcome] = {
@@ -28,10 +24,8 @@ object Board3x3 {
       else None
     }
 
-    override def turn(board: Board): Option[XO] =
-      if (freeCells(board).isEmpty) None
-      else if (board.xs.length == board.os.length) Some(X)
-      else Some(O)
+    override def turn(board: Board): XO =
+      if (board.xs.length == board.os.length) X else O
 
     override def freeCells(board: Board): List[Coord] =
       List

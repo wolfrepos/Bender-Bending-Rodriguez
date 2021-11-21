@@ -9,12 +9,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class BoardOpsSpec extends AnyFunSuite {
   test("put") {
-    assert(Board.empty.put(Coord(-1, 0), X) == Left("Нет такой клетки братан"))
     assert(
-      Board.empty.put(Coord(0, 0), X).flatMap(_.put(Coord(0, 0), X)) == Left("Клетка занята братан")
-    )
-    assert(
-      Board.empty.put(Coord(0, 0), X) == Right(Board(Coord(0, 0)::Nil, Nil))
+      Board.empty.put(Coord(0, 0)) == Board(Coord(0, 0)::Nil, Nil)
     )
   }
 
@@ -25,14 +21,7 @@ class BoardOpsSpec extends AnyFunSuite {
   }
 
   test("turn") {
-    assert(Board.empty.turn.contains(X))
-    assert(
-      Board(
-        List.tabulate(3, 3) {
-          case (x, y) => Coord(x, y)
-        }.flatten, Nil
-      ).turn.isEmpty
-    )
+    assert(Board.empty.turn == X)
   }
 
   test("freeCells") {
