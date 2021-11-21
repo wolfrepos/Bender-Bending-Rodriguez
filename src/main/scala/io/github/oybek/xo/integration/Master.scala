@@ -1,16 +1,15 @@
-package io.github.oybek.xo.service.impl
+package io.github.oybek.xo.integration
 
 import io.github.oybek.xo.model.Outcome.{Draw, Owin, Xwin}
 import io.github.oybek.xo.model.XO.{O, X}
 import io.github.oybek.xo.model.ops.Board3x3.ops
 import io.github.oybek.xo.model.ops.BoardOps.Syntax
 import io.github.oybek.xo.model.{Board, Coord, Outcome}
-import io.github.oybek.xo.service.Player
 
 import scala.collection.mutable
 
-object Master extends Player {
-  override def play(board: Board): Option[Coord] = {
+object Master {
+  def play(board: Board): Option[Coord] = {
     val priorities = board.turn match {
       case X => List(Xwin, Draw, Owin)
       case O => List(Owin, Draw, Xwin)
