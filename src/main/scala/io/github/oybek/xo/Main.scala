@@ -3,14 +3,13 @@ package io.github.oybek.xo
 import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.implicits.catsSyntaxFlatMapOps
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import io.github.oybek.xo.Main.F
 import io.github.oybek.xo.config.Config
 import io.github.oybek.xo.integration.TelegramGate
 import io.github.oybek.xo.model.Board
+import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.client.Client
-import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import telegramium.bots.high.BotApi
 
 import java.util.concurrent.TimeUnit

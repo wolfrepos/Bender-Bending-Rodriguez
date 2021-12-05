@@ -7,8 +7,8 @@ libraryDependencies ++= Seq(
   "org.scalactic" %% "scalactic" % "3.2.10",
   "org.scalatest" %% "scalatest" % "3.2.10" % "test",
 
-  "io.github.apimorphism" %% "telegramium-core" % "3.50.0",
-  "io.github.apimorphism" %% "telegramium-high" % "3.50.0",
+  "io.github.apimorphism" %% "telegramium-core" % "6.53.0",
+  "io.github.apimorphism" %% "telegramium-high" % "6.53.0",
 
   "com.github.pureconfig" %% "pureconfig" % "0.12.3"
 )
