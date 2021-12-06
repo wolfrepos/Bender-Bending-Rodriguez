@@ -46,12 +46,12 @@ jobs:
       with:
         java-version: 1.8
     - name: assembly
-      run: sbt "set (assembly / test) := {}; assembly"
+      run: sbt "clean; set (assembly / test) := {}; assembly"
     - name: deploy
       uses: garygrossgarten/github-action-scp@release
       with:
         local: target/scala-2.13/xo-assembly-0.1.jar
-        remote: /tmp/app.jar
+        remote: /tmp/${{ github.sha }}.jar
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         password: ${{ secrets.SSH_PASS }}
@@ -62,7 +62,7 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         password: ${{ secrets.SSH_PASS }}
         script: |
-          cp /tmp/app.jar ~/bender/app.jar
+          cp /tmp/${{ github.sha }}.jar ~/bender/app.jar
           sudo systemctl restart bender
     - name: inform command
       if: ${{ github.ref == 'refs/heads/master' }}
