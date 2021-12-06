@@ -59,19 +59,21 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
 
   private def handlePlayerTurn(message: Message, data: String): F[Unit] = {
     val x :: y :: Nil = data.split(",").map(_.toInt).toList
-    matches.get.map(_.getOrElse((message.chat.id, message.messageId), Board.empty)).flatMap {
-      case board if board.outcome.nonEmpty =>
+    matches.get.map(_.get((message.chat.id, message.messageId))).flatMap {
+      case Some(board) if board.outcome.nonEmpty =>
         onGameEnd(message, board)
 
-      case board@Board(xs, os) if xs.contains(Coord(x, y)) || os.contains(Coord(x, y)) =>
+      case Some(board@Board(xs, os)) if xs.contains(Coord(x, y)) || os.contains(Coord(x, y)) =>
         onBusyCellPress(message, board)
 
-      case board =>
+      case Some(board) =>
         val board0 = board.put(Coord(x, y))
         val board1 = Master.play(board0).map(board0.put).getOrElse(board0)
         board1.outcome.fold(onGameContinue(message, board1)) { _ =>
           onGameEnd(message, board1)
         }
+
+      case None => ().pure[F]
     }
   }
 
@@ -105,6 +107,7 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
             InlineKeyboardMarkup(inlineKeyboard ++ List(List(InlineKeyboardButton("Еще раз", callbackData = Some("/start")))))
         }
       ).exec(api).attempt.void
+      _ <- matches.update(_.removed((message.chat.id, message.messageId)))
     } yield ()
 
   private def startNewGame(message: Message, data: String): F[Unit] =
