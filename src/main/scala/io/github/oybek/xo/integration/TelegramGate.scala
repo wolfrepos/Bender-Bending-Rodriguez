@@ -38,7 +38,6 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
 
   private def onTextMessage(message: Message): F[Unit] =
     for {
-      _ <- log.info(message.sticker.toString)
       _ <- Methods.sendSticker(ChatIntId(message.chat.id), sticker = Stickers.greeting).exec(api)
       _ <- Timer[F].sleep(500.millis)
       _ <- Methods.sendMessage(
