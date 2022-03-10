@@ -83,7 +83,7 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
       _ <- Methods.editMessageText(
         chatId = ChatIntId(message.chat.id).some,
         messageId = message.messageId.some,
-        text = Random.shuffle(List("Твой ход", "Ходи", "Ты ходишь", "Ходи уже")).head,
+        text = Random.shuffle(List("Твой ход", "Ходи", "Ты ходишь", "Ходи уже", "Я уже сходил")).head,
         replyMarkup = drawBoard(board1).some
       ).exec(api).attempt.void
     } yield ()
