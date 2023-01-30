@@ -1,9 +1,7 @@
 package io.github.oybek.xo.model.ops
 
-import io.github.oybek.xo.model.Outcome.Xwin
-import io.github.oybek.xo.model.XO.X
-import io.github.oybek.xo.model.ops.Board3x3.ops
-import io.github.oybek.xo.model.ops.BoardOps.Syntax
+import io.github.oybek.xo.model.Outcome.Win
+import io.github.oybek.xo.model.XorO.X
 import io.github.oybek.xo.model.{Board, Coord}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -17,7 +15,7 @@ class BoardOpsSpec extends AnyFunSuite {
   test("outcome") {
     assert(Board.empty.outcome.isEmpty)
     assert(Board(List(Coord(0, 0), Coord(0, 1), Coord(1, 1)), Nil).outcome.isEmpty)
-    assert(Board(List(Coord(0, 0), Coord(0, 1), Coord(0, 2)), Nil).outcome.contains(Xwin))
+    assert(Board(List(Coord(0, 0), Coord(0, 1), Coord(0, 2)), Nil).outcome.contains(Win(X)))
   }
 
   test("turn") {

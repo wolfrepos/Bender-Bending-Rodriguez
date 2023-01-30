@@ -3,10 +3,9 @@ package io.github.oybek.xo.integration
 import cats.Parallel
 import cats.effect.concurrent.Ref
 import cats.effect.{Sync, Timer}
-import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxApplicativeId, catsSyntaxOptionId, toFunctorOps}
+import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, catsSyntaxApplicativeId, catsSyntaxOptionId, toFunctorOps}
 import cats.syntax.flatMap._
-import io.github.oybek.xo.model.ops.Board3x3.ops
-import io.github.oybek.xo.model.ops.BoardOps.Syntax
+import io.github.oybek.xo.model.Outcome.{Draw, Win}
 import io.github.oybek.xo.model.{Board, Coord}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import telegramium.bots._
@@ -16,7 +15,7 @@ import telegramium.bots.high.{Api, LongPollBot, Methods}
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
-class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int), Board]], api: Api[F]) extends LongPollBot[F](api) {
+class TelegramGate[F[_] : Sync : Timer : Parallel](matches: Ref[F, Map[(Long, Int), Board]], api: Api[F]) extends LongPollBot[F](api) {
   override def onMessage(message: Message): F[Unit] =
     message.text match {
       case _ => onTextMessage(message)
@@ -37,25 +36,21 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
     }
 
   private def onTextMessage(message: Message): F[Unit] =
-    for {
-      _ <- Methods.sendSticker(ChatIntId(message.chat.id), sticker = Stickers.greeting).exec(api)
-      _ <- Timer[F].sleep(500.millis)
-      _ <- Methods.sendMessage(
-        chatId = ChatIntId(message.chat.id),
-        text =
+    Methods.sendMessage(
+      chatId = ChatIntId(message.chat.id),
+      text =
         """
           |Нажми x или o чтобы начать игру
           |
           |Но предупрежу заранее...
           |Ты меня никогда не победишь!
           |""".stripMargin,
-        replyMarkup =
-          InlineKeyboardMarkup(List(List(
-            InlineKeyboardButton("x", callbackData = "x".some),
-            InlineKeyboardButton("o", callbackData = "o".some)
-          ))).some
-      ).exec(api).void
-    } yield ()
+      replyMarkup =
+        InlineKeyboardMarkup(List(List(
+          InlineKeyboardButton("x", callbackData = "x".some),
+          InlineKeyboardButton("o", callbackData = "o".some)
+        ))).some
+    ).exec(api).void
 
   private def handlePlayerTurn(message: Message, data: String): F[Unit] = {
     val x :: y :: Nil = data.split(",").map(_.toInt).toList
@@ -101,13 +96,25 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
       _ <- Methods.editMessageText(
         chatId = ChatIntId(message.chat.id).some,
         messageId = message.messageId.some,
-        text = "Вот и все!\nТы не выиграл!",
+        text = board.outcome match {
+          case Some(Win(_)) => "Ахахах!\nТы еще и проиграл!"
+          case _ => "Вот и все!\nТы не выиграл!"
+        },
         replyMarkup = drawBoard(board).some.map {
           case InlineKeyboardMarkup(inlineKeyboard) =>
             InlineKeyboardMarkup(inlineKeyboard ++ List(List(InlineKeyboardButton("Еще раз", callbackData = Some("/start")))))
         }
       ).exec(api).attempt.void
       _ <- matches.update(_.removed((message.chat.id, message.messageId)))
+      _ <- board.outcome match {
+        case Some(Win(_)) =>
+          Timer[F].sleep(2.second) >>
+            Methods
+              .sendSticker(ChatIntId(message.chat.id), sticker = Stickers.laugh)
+              .exec(api)
+              .void
+        case _ => ().pure[F]
+      }
     } yield ()
 
   private def startNewGame(message: Message, data: String): F[Unit] =
@@ -125,8 +132,12 @@ class TelegramGate[F[_]: Sync: Timer: Parallel](matches: Ref[F, Map[(Long, Int),
   private def drawBoard(board: Board): InlineKeyboardMarkup =
     InlineKeyboardMarkup(
       List.tabulate(3, 3) {
-        case (x, y) if board.xs.contains(Coord(x, y)) => InlineKeyboardButton("x", callbackData = s"$x,$y".some)
-        case (x, y) if board.os.contains(Coord(x, y)) => InlineKeyboardButton("o", callbackData = s"$x,$y".some)
+        case (x, y) if board.xs.contains(Coord(x, y)) =>
+          val c = if (board.winCoords(board.xs).exists(_.contains(Coord(x, y)))) "[x]" else "x"
+          InlineKeyboardButton(c, callbackData = s"$x,$y".some)
+        case (x, y) if board.os.contains(Coord(x, y)) =>
+          val c = if (board.winCoords(board.os).exists(_.contains(Coord(x, y)))) "[o]" else "o"
+          InlineKeyboardButton(c, callbackData = s"$x,$y".some)
         case (x, y) => InlineKeyboardButton(text = " ", callbackData = s"$x,$y".some)
       }
     )

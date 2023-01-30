@@ -1,48 +1,47 @@
 package io.github.oybek.xo.integration
 
-import io.github.oybek.xo.model.Outcome.{Draw, Owin, Xwin}
-import io.github.oybek.xo.model.XO.{O, X}
-import io.github.oybek.xo.model.ops.Board3x3.ops
-import io.github.oybek.xo.model.ops.BoardOps.Syntax
+import io.github.oybek.xo.model.Outcome.{Draw, Win}
 import io.github.oybek.xo.model.{Board, Coord, Outcome}
 
 import scala.collection.mutable
+import scala.util.Random
 
 object Master {
   def play(board: Board): Option[Coord] = {
-    val priorities = board.turn match {
-      case X => List(Xwin, Draw, Owin)
-      case O => List(Owin, Draw, Xwin)
-    }
-    val outcomes =
-      board
-        .freeCells
-        .map(coord => (whoWins(board.put(coord)), coord))
-    priorities.flatMap {
-      o1 => outcomes.collectFirst { case (o2, coord) if o1 == o2 => coord }
-    }.headOption
+    val outcomes = board.freeCells.map(coord => (whoWins(board.put(coord)), coord))
+
+    val (winCoords, drawCoords, _) =
+      outcomes.foldLeft((List.empty[Coord], List.empty[Coord], List.empty[Coord])) {
+        case ((win, draw, loss), (Win(one), coord)) =>
+          if (one == board.turn)
+            (coord :: win, draw, loss)
+          else
+            (win, draw, coord :: loss)
+        case ((win, draw, loss), (Draw, coord)) => (win, coord :: draw, loss)
+      }
+
+    Random.shuffle(winCoords).headOption orElse Random.shuffle(drawCoords).headOption
   }
 
-  private val whoWinsMemo = mutable.Map.empty[String, Outcome]
-  private def whoWins(board: Board): Outcome =
-    if (whoWinsMemo.contains(board.show)) {
-      whoWinsMemo(board.show)
-    } else {
-      val outcome =
-        board.outcome.getOrElse {
-          val checks = board.turn match {
-            case X => List(Xwin, Draw, Owin)
-            case O => List(Owin, Draw, Xwin)
+  private def memoize[K, V](f: K => V): K => V = new mutable.HashMap[K, V]() {
+    override def apply(key: K): V = getOrElseUpdate(key, f(key))
+  }
+
+  private val whoWins: Board => Outcome =
+    memoize { board =>
+      board.outcome.getOrElse {
+        board
+          .freeCells
+          .map(board.put)
+          .map(whoWins)
+          .minBy {
+            case Win(one) if one == board.turn => 1
+            case Draw => 2
+            case _ => 3
           }
-          val outcomes =
-            board
-              .freeCells
-              .map(coord => whoWins(board.put(coord)))
-          checks.find(outcomes.contains).get
-        }
-      whoWinsMemo.put(board.show, outcome)
-      outcome
+      }
     }
 
+  // initialize memo
   whoWins(Board.empty)
 }
