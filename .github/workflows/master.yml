@@ -28,26 +28,27 @@ jobs:
     steps:
     - name: checkout the code
       uses: actions/checkout@v3
-    - name: assembly
+    - name: Assembly
       run: sbt "clean; set (assembly / test) := {}; assembly"
-    - name: deploy
-      uses: garygrossgarten/github-action-scp@release
+    - name: Deploy
+      uses: appleboy/scp-action@v1.0.0
       with:
-        local: target/scala-2.13/bendingunit22-assembly-0.1.jar
-        remote: /tmp/${{ github.sha }}.jar
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
-        password: ${{ secrets.SSH_PASS }}
-    - name: update app
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: target/scala-2.13/bendingunit22-assembly-0.1.jar
+        target: /tmp
+        strip_components: 2
+    - name: Update app
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
-        password: ${{ secrets.SSH_PASS }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          cp /tmp/${{ github.sha }}.jar ~/bender/app.jar
+          cp /tmp/bendingunit22-assembly-0.1.jar ~/bender/app.jar
           sudo systemctl restart bender
-    - name: inform command
+    - name: Inform command
       if: ${{ github.ref == 'refs/heads/master' }}
       uses: appleboy/telegram-action@master
       with:
