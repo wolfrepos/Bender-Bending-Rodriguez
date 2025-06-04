@@ -1,10 +1,9 @@
 package io.github.oybek.xo.integration
 
 import cats.Parallel
-import cats.effect.concurrent.Ref
-import cats.effect.{Sync, Timer}
+import cats.effect.Async
 import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, catsSyntaxApplicativeId, catsSyntaxOptionId, toFunctorOps}
-import cats.syntax.flatMap._
+import cats.syntax.all._
 import io.github.oybek.xo.model.Outcome.{Draw, Win}
 import io.github.oybek.xo.model.{Board, Coord}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -14,37 +13,35 @@ import telegramium.bots.high.{Api, LongPollBot, Methods}
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
+import cats.effect.kernel.Ref
 
-class TelegramGate[F[_] : Sync : Timer : Parallel](matches: Ref[F, Map[(Long, Int), Board]], api: Api[F]) extends LongPollBot[F](api) {
+class TelegramGate[F[_] : Async : Parallel](matches: Ref[F, Map[(Long, Int), Board]], api: Api[F]) extends LongPollBot[F](api) {
   override def onMessage(message: Message): F[Unit] =
     message.text match {
       case _ => onTextMessage(message)
     }
 
   override def onCallbackQuery(query: CallbackQuery): F[Unit] =
-    query match {
-      case CallbackQuery(_, _, Some(message), _, _, Some(data), _) if data == "x" || data == "o" =>
-        startNewGame(message, data)
+    log.info("got callback query") *>
+    Methods.answerCallbackQuery(query.id).exec(api) *> {
+      query match {
+        case CallbackQuery(_, _, _, Some(message: Message), _, Some(data), _) if data == "x" || data == "o" =>
+          startNewGame(message, data)
 
-      case CallbackQuery(_, _, Some(message), _, _, Some(data), _) if data.matches("[0-9]+,[0-9]+") =>
-        handlePlayerTurn(message, data)
+        case CallbackQuery(_, _, _, Some(message: Message), _, Some(data), _) if data.matches("[0-9]+,[0-9]+") =>
+          handlePlayerTurn(message, data)
 
-      case CallbackQuery(_, _, Some(message), _, _, Some(data), _) if data == "/start" =>
-        onTextMessage(message)
+        case CallbackQuery(_, _, _, Some(message: Message), _, Some(data), _) if data == "/start" =>
+          onTextMessage(message)
 
-      case _ => ().pure[F]
+        case _ => ().pure[F]
+      }
     }
 
   private def onTextMessage(message: Message): F[Unit] =
     Methods.sendMessage(
       chatId = ChatIntId(message.chat.id),
-      text =
-        """
-          |Нажми x или o чтобы начать игру
-          |
-          |Но предупрежу заранее...
-          |Ты меня никогда не победишь!
-          |""".stripMargin,
+      text = Texts.text,
       replyMarkup =
         InlineKeyboardMarkup(List(List(
           InlineKeyboardButton("x", callbackData = "x".some),
@@ -78,8 +75,9 @@ class TelegramGate[F[_] : Sync : Timer : Parallel](matches: Ref[F, Map[(Long, In
       _ <- Methods.editMessageText(
         chatId = ChatIntId(message.chat.id).some,
         messageId = message.messageId.some,
-        text = Random.shuffle(List("Твой ход", "Ходи", "Ты ходишь", "Ходи уже", "Я уже сходил")).head,
-        replyMarkup = drawBoard(board1).some
+        text = Texts.center(Texts.yourTurn),
+        replyMarkup = drawBoard(board1).some,
+        parseMode = Some(Markdown),
       ).exec(api).attempt.void
     } yield ()
 
@@ -87,8 +85,9 @@ class TelegramGate[F[_] : Sync : Timer : Parallel](matches: Ref[F, Map[(Long, In
     Methods.editMessageText(
       chatId = ChatIntId(message.chat.id).some,
       messageId = message.messageId.some,
-      text = "Эта клетка занята!",
-      replyMarkup = drawBoard(board).some
+      text = Texts.center(Texts.cellIsBusy),
+      replyMarkup = drawBoard(board).some,
+      parseMode = Some(Markdown)
     ).exec(api).attempt.void
 
   private def onGameEnd(message: Message, board: Board): F[Unit] =
@@ -97,18 +96,19 @@ class TelegramGate[F[_] : Sync : Timer : Parallel](matches: Ref[F, Map[(Long, In
         chatId = ChatIntId(message.chat.id).some,
         messageId = message.messageId.some,
         text = board.outcome match {
-          case Some(Win(_)) => "Ахахах!\nТы еще и проиграл!"
-          case _ => "Вот и все!\nТы не выиграл!"
+          case Some(Win(_)) => Texts.center(Texts.lost)
+          case _ => Texts.center(Texts.draw)
         },
         replyMarkup = drawBoard(board).some.map {
           case InlineKeyboardMarkup(inlineKeyboard) =>
             InlineKeyboardMarkup(inlineKeyboard ++ List(List(InlineKeyboardButton("Еще раз", callbackData = Some("/start")))))
-        }
+        },
+        parseMode = Some(Markdown)
       ).exec(api).attempt.void
       _ <- matches.update(_.removed((message.chat.id, message.messageId)))
       _ <- board.outcome match {
         case Some(Win(_)) =>
-          Timer[F].sleep(2.second) >>
+          Async[F].sleep(2.second) >>
             Methods
               .sendSticker(ChatIntId(message.chat.id), sticker = Stickers.laugh)
               .exec(api)
@@ -123,8 +123,9 @@ class TelegramGate[F[_] : Sync : Timer : Parallel](matches: Ref[F, Map[(Long, In
       _ <- Methods.sendSticker(ChatIntId(message.chat.id), sticker = Stickers.smocking).exec(api)
       gameMessage <- Methods.sendMessage(
         chatId = ChatIntId(message.chat.id),
-        text = "Твой ход!",
-        replyMarkup = drawBoard(board).some
+        text = Texts.center("Твой.ход!"),
+        replyMarkup = drawBoard(board).some,
+        parseMode = Some(Markdown)
       ).exec(api)
       _ <- matches.update(_.updated((gameMessage.chat.id, gameMessage.messageId), board))
     } yield ()

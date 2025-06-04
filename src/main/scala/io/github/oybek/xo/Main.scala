@@ -1,7 +1,6 @@
 package io.github.oybek.xo
 
 import cats.effect._
-import cats.effect.concurrent.Ref
 import cats.implicits.catsSyntaxFlatMapOps
 import io.github.oybek.xo.config.Config
 import io.github.oybek.xo.integration.TelegramGate
@@ -38,11 +37,11 @@ object Main extends IOApp {
     } yield ()
   }
 
-  private def resources[F[_]: Timer: ConcurrentEffect](config: Config): Resource[F, Client[F]] =
-    BlazeClientBuilder[F](global)
+  private def resources(config: Config): Resource[IO, Client[IO]] =
+    BlazeClientBuilder[IO](global)
       .withResponseHeaderTimeout(FiniteDuration(telegramResponseWaitTime, TimeUnit.SECONDS))
       .resource
 
-  private val telegramResponseWaitTime = 60L
+  private val telegramResponseWaitTime = 30L
   private val log = Slf4jLogger.getLoggerFromName[F]("application")
 }
