@@ -11,29 +11,25 @@ on:
 jobs:
   LintAndTest:
     runs-on: ubuntu-latest
+    container:
+      image: sbtscala/scala-sbt:11.0.19_1.11.1_2.13.16
     steps:
-    - uses: actions/checkout@v1
-    - name: set up JDK 11
-      uses: actions/setup-java@v1
-      with:
-        java-version: 11
-    - name: test
-      run: |
-        sbt test
+    - name: checkout the code
+      uses: actions/checkout@v3
+    - name: run tests
+      run: sbt test
 
   BuildAndDeploy:
     if: ${{ github.ref == 'refs/heads/master' }}
     needs: LintAndTest
     runs-on: ubuntu-latest
+    container:
+      image: sbtscala/scala-sbt:11.0.19_1.11.1_2.13.16
     steps:
-    - uses: actions/checkout@v1
-    - name: set up JDK 11
-      uses: actions/setup-java@v1
-      with:
-        java-version: 11
+    - name: checkout the code
+      uses: actions/checkout@v3
     - name: assembly
-      run: |
-        sbt "clean; set (assembly / test) := {}; assembly"
+      run: sbt "clean; set (assembly / test) := {}; assembly"
     - name: deploy
       uses: garygrossgarten/github-action-scp@release
       with:
