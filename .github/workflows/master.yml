@@ -12,7 +12,7 @@ jobs:
   LintAndTest:
     runs-on: ubuntu-latest
     container:
-      image: sbtscala/scala-sbt:11.0.19_1.11.1_2.13.16
+      image: sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.1_2.13.16
     steps:
     - name: checkout the code
       uses: actions/checkout@v3
@@ -24,7 +24,7 @@ jobs:
     needs: LintAndTest
     runs-on: ubuntu-latest
     container:
-      image: sbtscala/scala-sbt:11.0.19_1.11.1_2.13.16
+      image: sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.1_2.13.16
     steps:
     - name: checkout the code
       uses: actions/checkout@v3
