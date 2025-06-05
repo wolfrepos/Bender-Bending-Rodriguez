@@ -75,7 +75,7 @@ class TelegramGate[F[_] : Async : Parallel](matches: Ref[F, Map[(Long, Int), Boa
       _ <- Methods.editMessageText(
         chatId = ChatIntId(message.chat.id).some,
         messageId = message.messageId.some,
-        text = Texts.center(Texts.yourTurn),
+        text = Texts.gap + "\n" + Texts.yourTurn,
         replyMarkup = drawBoard(board1).some,
         parseMode = Some(Markdown),
       ).exec(api).attempt.void
@@ -85,7 +85,7 @@ class TelegramGate[F[_] : Async : Parallel](matches: Ref[F, Map[(Long, Int), Boa
     Methods.editMessageText(
       chatId = ChatIntId(message.chat.id).some,
       messageId = message.messageId.some,
-      text = Texts.center(Texts.cellIsBusy),
+      text = Texts.gap + "\n" + Texts.cellIsBusy,
       replyMarkup = drawBoard(board).some,
       parseMode = Some(Markdown)
     ).exec(api).attempt.void
@@ -96,8 +96,8 @@ class TelegramGate[F[_] : Async : Parallel](matches: Ref[F, Map[(Long, Int), Boa
         chatId = ChatIntId(message.chat.id).some,
         messageId = message.messageId.some,
         text = board.outcome match {
-          case Some(Win(_)) => Texts.center(Texts.lost)
-          case _ => Texts.center(Texts.draw)
+          case Some(Win(_)) => Texts.gap + "\n" + Texts.lost
+          case _ => Texts.gap + "\n" + Texts.draw
         },
         replyMarkup = drawBoard(board).some.map {
           case InlineKeyboardMarkup(inlineKeyboard) =>
@@ -123,7 +123,7 @@ class TelegramGate[F[_] : Async : Parallel](matches: Ref[F, Map[(Long, Int), Boa
       _ <- Methods.sendSticker(ChatIntId(message.chat.id), sticker = Stickers.smocking).exec(api)
       gameMessage <- Methods.sendMessage(
         chatId = ChatIntId(message.chat.id),
-        text = Texts.center("Твой.ход!"),
+        text = Texts.gap + "\n" + "Твой ход!",
         replyMarkup = drawBoard(board).some,
         parseMode = Some(Markdown)
       ).exec(api)
